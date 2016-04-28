@@ -1,0 +1,6 @@
+---
+# handlers file for sa-php-hhvm
+
+- name: HHVM | restart hhvm
+  action: service name=hhvm-fastcgi state=restarted enabled=yes
+  when: docker_test is not defined
