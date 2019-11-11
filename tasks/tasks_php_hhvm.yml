@@ -6,7 +6,8 @@
      - hhvm
 
   - name: HHVM | add deb repository
-    apt_repository: repo='deb http://dl.hhvm.com/debian {{ ansible_distribution_release }} main' state=present
+    apt_repository: repo='deb https://dl.hhvm.com/ubuntu {{ ansible_distribution_release }} main' state=present
+    become: yes
     tags:
      - hhvm
 
@@ -30,8 +31,42 @@
      - hhvm
 
   - name: HHVM | Console operations - symlink hhvm as php
-    file: src="{{ hhvm_path.stdout }}" dest=/usr/bin/php state=link
+    file: src="{{ hhvm_path.stdout }}" dest=/usr/bin/phphhvm state=link
     become: yes
     tags:
      - hhvm
 
+  - name: FPM | Patch default settings /etc/hhvm/server.ini
+    lineinfile:
+      dest: /etc/hhvm/server.ini
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter | default('EOF') }}"
+    with_items:
+        - {
+            regexp : "^[;]?hhvm.server.port *",
+            line: ";hhvm.server.port = 9000"
+          }
+        - {
+            regexp: "^[;]?hhvm.server.file_socket *",
+            line: "hhvm.server.file_socket = /var/run/hhvm/hhvm.sock",
+            insertafter: "^[;]?hhvm.server.port*"
+          }
+    when: php_fpm_listen is defined and php_fpm_listen == "sock"
+    become: yes
+    tags:
+     - hhvm
+
+  - name: HHVM | Template hhvm service
+    template:
+      src: "{{ role_dir }}/templates/hhvm/phphhvm-fpm.service.j2"
+      dest: "/etc/systemd/system/phphhvm-fpm.service"
+    become: yes
+    tags:
+     - hhvm
+
+  - name: HHVM | Start and enable hhvm fastcgi service
+    service: name="phphhvm-fpm" state="restarted" enabled="yes"
+    become: yes
+    tags:
+     - hhvm
