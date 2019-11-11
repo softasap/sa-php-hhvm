@@ -6,15 +6,18 @@
      - hhvm
 
   - name: HHVM | add deb repository
-    apt_repository: repo='deb https://dl.hhvm.com/ubuntu {{ansible_distribution_release}} main' state=present
+    apt_repository: repo='deb https://dl.hhvm.com/ubuntu {{ ansible_distribution_release }} main' state=present
     become: yes
     tags:
      - hhvm
 
   - name: HHVM | install hhvm packages
-    apt: pkg={{ item }} state=latest update_cache=yes force=yes
-    with_items:
-      - hhvm
+    apt:
+      pkg:
+        - hhvm-fastcgi
+      state: present
+      update_cache: yes
+      force: yes
     become: yes
     notify: restart hhvm
     tags:
@@ -23,6 +26,7 @@
   - name: HHVM | get hhvm install path realtime
     command: which hhvm
     register: hhvm_path
+    changed_when: false
     tags:
      - hhvm
 
@@ -33,7 +37,11 @@
      - hhvm
 
   - name: FPM | Patch default settings /etc/hhvm/server.ini
-    lineinfile: dest=/etc/hhvm/server.ini  regexp="{{item.regexp}}" line="{{item.line}}" insertafter="{{item.insertafter | default('EOF')}}"
+    lineinfile:
+      dest: /etc/hhvm/server.ini
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter | default('EOF') }}"
     with_items:
         - {
             regexp : "^[;]?hhvm.server.port *",
@@ -50,7 +58,9 @@
      - hhvm
 
   - name: HHVM | Template hhvm service
-    template: src="{{role_dir}}/templates/hhvm/phphhvm-fpm.service.j2" dest="/etc/systemd/system/phphhvm-fpm.service"
+    template:
+      src: "{{ role_dir }}/templates/hhvm/phphhvm-fpm.service.j2"
+      dest: "/etc/systemd/system/phphhvm-fpm.service"
     become: yes
     tags:
      - hhvm
